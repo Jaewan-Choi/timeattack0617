@@ -4,22 +4,20 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 
 # custom user model 사용 시 UserManager 클래스와 create_user, create_superuser 함수가 정의되어 있어야 함
 class UserManager(BaseUserManager):
-    def create_user(self, email, username, password=None):
-        if not username:
-            raise ValueError('Users must have an username')
+    def create_user(self, email, password=None):
+        if not email:
+            raise ValueError('Users must have an email')
         user = self.model(
             email=email,
-            username=username,
         )
         user.set_password(password)
         user.save(using=self._db)
         return user
     
     # python manage.py createsuperuser 사용 시 해당 함수가 사용됨
-    def create_superuser(self, email, username, password=None):
+    def create_superuser(self, email, password=None):
         user = self.create_user(
             email=email,
-            username=username,
             password=password
         )
         user.is_admin = True
@@ -37,7 +35,7 @@ class UserType(models.Model):
 
 # 커스텀 유저 모델
 class User(AbstractBaseUser):
-    username = models.CharField("사용자 계정", max_length=20, unique=True)
+    username = models.CharField("사용자 계정", max_length=20)
     password = models.CharField("비밀번호", max_length=128)  # 해시되기 때문에 max_length가 길어야함
     email = models.EmailField("이메일 주소", max_length=50, unique=True)
     fullname = models.CharField("이름", max_length=20)
@@ -56,7 +54,7 @@ class User(AbstractBaseUser):
     # 어드민 계정을 만들 때 입력받을 정보 ex) email
     # 사용하지 않더라도 선언이 되어야함
     # USERNAME_FIELD와 비밀번호는 기본적으로 포함되어있음
-    REQUIRED_FIELDS = ['username']
+    REQUIRED_FIELDS = []
 
     # custom user 생성 시 필요
     objects = UserManager()
@@ -80,8 +78,12 @@ class User(AbstractBaseUser):
 
 
 class UserLog(models.Model):
+    email = models.OneToOneField(User, verbose_name="유저", on_delete=models.CASCADE)
     last_login_date = models.DateField("마지막 로그인 날짜")
-    last_submit_date = models.DateField("마지막 지원 날짜")
+    last_submit_date = models.DateField("마지막 지원 날짜", null=True)
+
+    def __str__(self):
+        return f"{self.email}"
 
 
 # 유저 상세 정보 테이블

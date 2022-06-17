@@ -5,6 +5,8 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.hashers import make_password
 from .models import User as UserModel
 from .models import UserType as UserTypeModel
+from .models import UserLog as UserLogModel
+from datetime import datetime
 
 
 class UserView(APIView): # CBV 방식
@@ -32,30 +34,40 @@ class UserView(APIView): # CBV 방식
 class UserApiView(APIView):
     permission_classes = [permissions.AllowAny]
 
-    # 로그인과 회원가입
+    # 회원가입
     def post(self, request):
         email = request.data.get('email', '')
 
         password = request.data.get('password', '')
         hashed_password = make_password(password)
 
-        user = authenticate(request, email=email, password=hashed_password)
-        print(user)
+        type = request.data.get('type', '')
+        get_type = UserTypeModel.objects.get(type=type)
+
+        UserModel.objects.create(
+            email = email,
+            password = hashed_password,
+            type = get_type
+        )
+        
+        return Response({"message": "회원가입 성공!!"})       
+
+
+class UserLoginLogout(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    # 로그인
+    def post(self, request):
+        email = request.data.get('email', '')
+        password = request.data.get('password', '')
+
+        user = authenticate(request, email=email, password=password)
         if not user:
-            type = request.data.get('type', '')
-            get_type = UserTypeModel.objects.get(type=type)
+            return Response({"message": "로그인 실패"})
 
-            UserModel.objects.create(
-                email = email,
-                password = hashed_password,
-                type = get_type
-            )
-            
-            return Response({"message": "회원가입 성공!!"})
-
-        else:
-            login(request, user)
-            return Response({"message": "로그인 성공!!"})        
+        login(request, user)
+        UserLogModel.objects.create(email=user, last_login_date=datetime.now())
+        return Response({"message": "로그인 성공"})
 
     # 로그아웃
     def delete(self, request):
